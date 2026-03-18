@@ -1,1 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pulse — SaaS Analytics Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f6f2;
+    --surface: #ffffff;
+    --border: #e8e5de;
+    --text: #1a1916;
+    --muted: #9b9890;
+    --accent: #e85a2f;
+    --accent2: #2f7de8;
+    --success: #2db57a;
+    --warning: #e8a82f;
+    --sidebar-w: 240px;
+  }
 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    font-size: 14px;
+  }
+
+  .sidebar {
+    width: var(--sidebar-w);
+    height: 100vh;
+    background: var(--text);
+    position: fixed;
+    top: 0; left: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    z-index: 10;
+  }
+
+  .sidebar-logo {
+    padding: 0 24px 28px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    margin-bottom: 20px;
+  }
+  .sidebar-logo .logo-text {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.03em;
+  }
+  .sidebar-logo .logo-dot { color: var(--accent); }
+  .sidebar-logo .logo-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: rgba(255,255,255,0.3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .nav-section { padding: 0 12px; margin-bottom: 24px; }
+  .nav-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+    padding: 0 12px;
+    margin-bottom: 6px;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.9); }
+  .nav-item.active { background: var(--accent); color: #fff; }
+  .nav-icon { width: 16px; text-align: center; font-size: 14px; }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 20px 24px 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .user-row { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .user-name { font-size: 0.82rem; font-weight: 600; color: #fff; }
+  .user-role { font-size: 0.7rem; color: rgba(255,255,255,0.35); }
+
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .topbar-left h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -0.02em; }
+  .topbar-left p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 1px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+  .date-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text);
+  }
+
+  .btn-export {
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.15s;
+  }
+  .btn-export:hover { opacity: 0.8; }
+
+  .content { padding: 28px 32px; flex: 1; }
+
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: default;
+  }
+  .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+  .metric-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .metric-card.orange::before { background: var(--accent); }
+  .metric-card.blue::before { background: var(--accent2); }
+  .metric-card.green::before { background: var(--success); }
+  .metric-card.yellow::before { background: var(--warning); }
+
+  .metric-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .metric-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+  .metric-change {
+    font-size: 0.72rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .metric-change.up { color: var(--success); }
+  .metric-change.down { color: var(--accent); }
+  .metric-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+
+  .charts-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .card-title { font-size: 0.92rem; font-weight: 700; letter-spacing: -0.02em; }
+  .card-sub {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 2px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tab-group {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+    border: none;
+    background: transparent;
+    font-family: 'Bricolage Grotesque', sans-serif;
+  }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+  .chart-wrap { position: relative; height: 220px; }
+
+  .donut-wrap { position: relative; height: 180px; display: flex; align-items: center; justify-content: center; }
+  .donut-center { position: absolute; text-align: center; pointer-events: none; }
+  .donut-center .big { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.03em; }
+  .donut-center .small { font-size: 0.68rem; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .legend { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .legend-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.78rem; }
+  .legend-left { display: flex; align-items: center; gap: 8px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+  .legend-label { color: var(--text); }
+  .legend-val { font-weight: 600; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; }
+
+  .bottom-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .data-table { width: 100%; border-collapse: collapse; }
+  .data-table th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-align: left;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+  .data-table td { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--bg); }
+
+  .plan-badge {
+    font-size: 0.62rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .plan-badge.pro { background: #fde8e1; color: var(--accent); }
+  .plan-badge.starter { background: #e1edfd; color: var(--accent2); }
+  .plan-badge.enterprise { background: #e1fdf0; color: var(--success); }
+
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+  .status-dot.active { background: var(--success); }
+  .status-dot.churned { background: var(--accent); }
+  .status-dot.trial { background: var(--warning); }
+
+  .feed { display: flex; flex-direction: column; gap: 0; }
+  .feed-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+  .feed-icon.new { background: #e1fdf0; }
+  .feed-icon.upgrade { background: #fde8e1; }
+  .feed-icon.churn { background: #fdf5e1; }
+  .feed-icon.payment { background: #e1edfd; }
+  .feed-text { font-size: 0.8rem; line-height: 1.5; flex: 1; }
+  .feed-text strong { font-weight: 600; }
+  .feed-time { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--muted); white-space: nowrap; margin-top: 2px; }
+
+  @keyframes livePulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--success);
+    display: inline-block;
+    margin-right: 5px;
+    animation: livePulse 1.5s infinite;
+  }
+
+  @media (max-width: 1100px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .charts-row { grid-template-columns: 1fr; }
+    .bottom-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-text">Pulse<span class="logo-dot">.</span></div>
+    <div class="logo-sub">Analytics Platform</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active"><span class="nav-icon">▦</span> Overview</div>
+    <div class="nav-item"><span class="nav-icon">↗</span> Revenue</div>
+    <div class="nav-item"><span class="nav-icon">◎</span> Customers</div>
+    <div class="nav-item"><span class="nav-icon">≋</span> Usage</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Reports</div>
+    <div class="nav-item"><span class="nav-icon">⊞</span> MRR Breakdown</div>
+    <div class="nav-item"><span class="nav-icon">△</span> Churn Analysis</div>
+    <div class="nav-item"><span class="nav-icon">◈</span> Cohorts</div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Settings</div>
+    <div class="nav-item"><span class="nav-icon">⊙</span> Integrations</div>
+    <div class="nav-item"><span class="nav-icon">◻</span> Team</div>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-row">
+      <div class="avatar">CL</div>
+      <div>
+        <div class="user-name">Callum Lewis</div>
+        <div class="user-role">Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>Overview</h1>
+      <p><span class="live-dot"></span>Live · Updated just now</p>
+    </div>
+    <div class="topbar-right">
+      <div class="date-range" onclick="cycleRange(this)">
+        📅 <span id="range-label">Last 30 days</span> ▾
+      </div>
+      <button class="btn-export" onclick="exportCSV()">↓ Export</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="metrics-grid">
+      <div class="metric-card orange">
+        <div class="metric-label">Monthly Recurring Revenue</div>
+        <div class="metric-value">£48,290</div>
+        <div class="metric-change up">▲ 12.4% vs last month</div>
+        <div class="metric-sub">+£5,320 this period</div>
+      </div>
+      <div class="metric-card blue">
+        <div class="metric-label">Active Customers</div>
+        <div class="metric-value">1,847</div>
+        <div class="metric-change up">▲ 8.1% vs last month</div>
+        <div class="metric-sub">138 new this period</div>
+      </div>
+      <div class="metric-card green">
+        <div class="metric-label">Churn Rate</div>
+        <div class="metric-value">2.3%</div>
+        <div class="metric-change up">▼ 0.4% vs last month</div>
+        <div class="metric-sub">Industry avg: 4.7%</div>
+      </div>
+      <div class="metric-card yellow">
+        <div class="metric-label">Avg Revenue Per User</div>
+        <div class="metric-value">£26.14</div>
+        <div class="metric-change up">▲ 3.9% vs last month</div>
+        <div class="metric-sub">Target: £30.00</div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Revenue over time</div>
+            <div class="card-sub">MRR + New MRR</div>
+          </div>
+          <div class="tab-group">
+            <button class="tab active" onclick="switchTab(this,'mrr')">MRR</button>
+            <button class="tab" onclick="switchTab(this,'arr')">ARR</button>
+            <button class="tab" onclick="switchTab(this,'new')">New</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Plan distribution</div>
+            <div class="card-sub">By customer count</div>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <canvas id="donutChart"></canvas>
+          <div class="donut-center">
+            <div class="big">1,847</div>
+            <div class="small">total</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:#2f7de8"></div><span class="legend-label">Starter</span></div>
+            <span class="legend-val">924</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:#e85a2f"></div><span class="legend-label">Pro</span></div>
+            <span class="legend-val">681</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-left"><div class="legend-dot" style="background:#2db57a"></div><span class="legend-label">Enterprise</span></div>
+            <span class="legend-val">242</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Recent customers</div>
+            <div class="card-sub">Last 7 days</div>
+          </div>
+        </div>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Customer</th><th>Plan</th><th>MRR</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Notion Labs</strong></td>
+              <td><span class="plan-badge enterprise">Enterprise</span></td>
+              <td>£2,400</td>
+              <td><span class="status-dot active"></span>Active</td>
+            </tr>
+            <tr>
+              <td><strong>Pipedrive</strong></td>
+              <td><span class="plan-badge pro">Pro</span></td>
+              <td>£299</td>
+              <td><span class="status-dot active"></span>Active</td>
+            </tr>
+            <tr>
+              <td><strong>Basecamp Inc</strong></td>
+              <td><span class="plan-badge starter">Starter</span></td>
+              <td>£49</td>
+              <td><span class="status-dot trial"></span>Trial</td>
+            </tr>
+            <tr>
+              <td><strong>Linear App</strong></td>
+              <td><span class="plan-badge pro">Pro</span></td>
+              <td>£299</td>
+              <td><span class="status-dot active"></span>Active</td>
+            </tr>
+            <tr>
+              <td><strong>Raycast HQ</strong></td>
+              <td><span class="plan-badge starter">Starter</span></td>
+              <td>£49</td>
+              <td><span class="status-dot churned"></span>Churned</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Activity feed</div>
+            <div class="card-sub">Real-time events</div>
+          </div>
+        </div>
+        <div class="feed">
+          <div class="feed-item">
+            <div class="feed-icon new">🟢</div>
+            <div class="feed-text"><strong>Acme Corp</strong> signed up for Enterprise plan<div class="feed-time">2 min ago</div></div>
+          </div>
+          <div class="feed-item">
+            <div class="feed-icon upgrade">🔥</div>
+            <div class="feed-text"><strong>DevTools Ltd</strong> upgraded Starter → Pro<div class="feed-time">14 min ago</div></div>
+          </div>
+          <div class="feed-item">
+            <div class="feed-icon payment">💳</div>
+            <div class="feed-text"><strong>SyncHQ</strong> payment of £2,400 received<div class="feed-time">1 hr ago</div></div>
+          </div>
+          <div class="feed-item">
+            <div class="feed-icon new">🟢</div>
+            <div class="feed-text"><strong>Codestack</strong> signed up for Starter plan<div class="feed-time">2 hr ago</div></div>
+          </div>
+          <div class="feed-item">
+            <div class="feed-icon churn">⚠️</div>
+            <div class="feed-text"><strong>Raycast HQ</strong> cancelled their subscription<div class="feed-time">3 hr ago</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const months = ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+  const mrrData = [31200, 33800, 35100, 37600, 40200, 42900, 45800, 48290];
+  const arrData = mrrData.map(v => Math.round(v * 12));
+  const newData = [3200, 2600, 1300, 2500, 2600, 2700, 2900, 2490];
+
+  const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+  const revenueChart = new Chart(revenueCtx, {
+    type: 'line',
+    data: {
+      labels: months,
+      datasets: [{
+        label: 'MRR',
+        data: mrrData,
+        borderColor: '#e85a2f',
+        backgroundColor: 'rgba(232,90,47,0.08)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#e85a2f',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1916',
+          titleFont: { family: 'JetBrains Mono', size: 11 },
+          bodyFont: { family: 'Bricolage Grotesque', size: 13 },
+          padding: 12,
+          callbacks: { label: ctx => ' £' + ctx.parsed.y.toLocaleString() }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9b9890' } },
+        y: {
+          grid: { color: '#f0ede6' },
+          ticks: { font: { family: 'JetBrains Mono', size: 10 }, color: '#9b9890', callback: v => '£' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) }
+        }
+      }
+    }
+  });
+
+  function switchTab(el, type) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    let data, color, label;
+    if (type === 'mrr') { data = mrrData; color = '#e85a2f'; label = 'MRR'; }
+    else if (type === 'arr') { data = arrData; color = '#2f7de8'; label = 'ARR'; }
+    else { data = newData; color = '#2db57a'; label = 'New MRR'; }
+    revenueChart.data.datasets[0].data = data;
+    revenueChart.data.datasets[0].borderColor = color;
+    revenueChart.data.datasets[0].backgroundColor = color + '15';
+    revenueChart.data.datasets[0].pointBackgroundColor = color;
+    revenueChart.data.datasets[0].label = label;
+    revenueChart.update();
+  }
+
+  const donutCtx = document.getElementById('donutChart').getContext('2d');
+  new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Starter', 'Pro', 'Enterprise'],
+      datasets: [{ data: [924, 681, 242], backgroundColor: ['#2f7de8', '#e85a2f', '#2db57a'], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: '#1a1916', titleFont: { family: 'JetBrains Mono', size: 11 }, bodyFont: { family: 'Bricolage Grotesque', size: 13 }, padding: 12 }
+      }
+    }
+  });
+
+  const ranges = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
+  let rangeIdx = 1;
+  function cycleRange(el) {
+    rangeIdx = (rangeIdx + 1) % ranges.length;
+    document.getElementById('range-label').textContent = ranges[rangeIdx];
+  }
+
+  function exportCSV() {
+    const csv = 'Month,MRR,Customers\nAug,31200,1420\nSep,33800,1512\nOct,35100,1580\nNov,37600,1634\nDec,40200,1698\nJan,42900,1742\nFeb,45800,1805\nMar,48290,1847';
+    const a = document.createElement('a');
+    a.href = 'data:text/csv,' + encodeURIComponent(csv);
+    a.download = 'pulse-analytics.csv';
+    a.click();
+  }
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  setInterval(() => {
+    const events = [
+      { icon: '🟢', cls: 'new', text: '<strong>New user</strong> signed up for Starter plan' },
+      { icon: '💳', cls: 'payment', text: '<strong>Payment</strong> of £299 received from Pro customer' },
+      { icon: '🔥', cls: 'upgrade', text: '<strong>Customer</strong> upgraded to Pro plan' },
+    ];
+    const feed = document.querySelector('.feed');
+    const e = events[Math.floor(Math.random() * events.length)];
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+    item.style.opacity = '0';
+    item.style.transition = 'opacity 0.4s';
+    item.innerHTML = `<div class="feed-icon ${e.cls}">${e.icon}</div><div class="feed-text">${e.text}<div class="feed-time">just now</div></div>`;
+    feed.insertBefore(item, feed.firstChild);
+    setTimeout(() => item.style.opacity = '1', 50);
+    if (feed.children.length > 5) feed.removeChild(feed.lastChild);
+  }, 8000);
+</script>
+</body>
+</html>
