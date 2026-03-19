@@ -21,7 +21,7 @@ Google Fonts — Bricolage Grotesque & JetBrains Mono
 
 Getting Started
 No installation required. Just clone the repo and open the file:
-bashgit clone https://github.com/callum-lewis/saas-analytics-dashboard.git
+bashgit clone https://github.com/GrokkyHodor/saas-analytics-dashboard.git
 cd saas-analytics-dashboard
 open index.html
 Or simply download index.html and open it in any browser.
